@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const { DateTime } = require("luxon");
 const Schema = mongoose.Schema;
 
 const AuthorSchema = new Schema({
@@ -25,6 +25,40 @@ AuthorSchema.virtual("name").get(function () {
 AuthorSchema.virtual("url").get(function () {
   // We don't use an arrow function as we'll need the this object
   return `/catalog/author/${this._id}`;
+});
+
+AuthorSchema.virtual("lifespan").get(function () {
+  let lifetime_string = "";
+  if (this.date_of_birth) {
+    lifetime_string = DateTime.fromJSDate(this.date_of_birth).toLocaleString(
+      DateTime.DATE_MED
+    );
+  }
+  lifetime_string += " - ";
+  if (this.date_of_death) {
+    lifetime_string += DateTime.fromJSDate(this.date_of_death).toLocaleString(
+      DateTime.DATE_MED
+    );
+  }
+  return lifetime_string;
+});
+
+AuthorSchema.virtual("formatted_date_of_birth").get(function () {
+  if (this.date_of_birth instanceof Date && !isNaN(this.date_of_birth)) {
+    return DateTime.fromJSDate(this.date_of_birth).toLocaleString(
+      DateTime.DATE_MED
+    );
+  }
+  return "";
+});
+
+AuthorSchema.virtual("formatted_date_of_death").get(function () {
+  if (this.date_of_death instanceof Date && !isNaN(this.date_of_death)) {
+    return DateTime.fromJSDate(this.date_of_death).toLocaleString(
+      DateTime.DATE_MED
+    );
+  }
+  return "";
 });
 
 // Export model
