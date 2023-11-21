@@ -2,8 +2,8 @@ const Book = require("../models/book");
 const Author = require("../models/author");
 const Genre = require("../models/genre");
 const BookInstance = require("../models/bookinstance");
-const { body, validationResult } = require("express-validator");
 
+const { body, validationResult } = require("express-validator");
 const asyncHandler = require("express-async-handler");
 
 exports.index = asyncHandler(async (req, res, next) => {
@@ -19,7 +19,7 @@ exports.index = asyncHandler(async (req, res, next) => {
     BookInstance.countDocuments({}).exec(),
     BookInstance.countDocuments({ status: "Available" }).exec(),
     Author.countDocuments({}).exec(),
-    Genre.countDocuments({}).exec(),
+    Author.countDocuments({}).exec(),
   ]);
 
   res.render("index", {
@@ -131,7 +131,7 @@ exports.book_create_post = [
 
       // Mark our selected genres as checked.
       for (const genre of allGenres) {
-        if (book.genre.includes(genre._id)) {
+        if (book.genre.indexOf(genre._id) > -1) {
           genre.checked = "true";
         }
       }
@@ -152,12 +152,50 @@ exports.book_create_post = [
 
 // Display book delete form on GET.
 exports.book_delete_get = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Book delete GET");
+  const [book, bookInstances] = await Promise.all([
+    Book.findById(req.params.id).populate("author").populate("genre").exec(),
+    BookInstance.find({ book: req.params.id }).exec(),
+  ]);
+
+  if (book === null) {
+    // No results.
+    res.redirect("/catalog/books");
+  }
+
+  res.render("book_delete", {
+    title: "Delete Book",
+    book: book,
+    book_instances: bookInstances,
+  });
 });
 
 // Handle book delete on POST.
 exports.book_delete_post = asyncHandler(async (req, res, next) => {
-  res.send("NOT IMPLEMENTED: Book delete POST");
+  // Assume the post has valid id (ie no validation/sanitization).
+
+  const [book, bookInstances] = await Promise.all([
+    Book.findById(req.params.id).populate("author").populate("genre").exec(),
+    BookInstance.find({ book: req.params.id }).exec(),
+  ]);
+
+  if (book === null) {
+    // No results.
+    res.redirect("/catalog/books");
+  }
+
+  if (bookInstances.length > 0) {
+    // Book has book_instances. Render in same way as for GET route.
+    res.render("book_delete", {
+      title: "Delete Book",
+      book: book,
+      book_instances: bookInstances,
+    });
+    return;
+  } else {
+    // Book has no BookInstance objects. Delete object and redirect to the list of books.
+    await Book.findByIdAndDelete(req.body.id);
+    res.redirect("/catalog/books");
+  }
 });
 
 // Display book update form on GET.
@@ -249,7 +287,7 @@ exports.book_update_post = [
 
       // Mark our selected genres as checked.
       for (const genre of allGenres) {
-        if (book.genre.indexOf(genre._id) > -1) {
+        if (book.genre.includes(genre._id)) {
           genre.checked = "true";
         }
       }
@@ -263,9 +301,9 @@ exports.book_update_post = [
       return;
     } else {
       // Data from form is valid. Update the record.
-      const updatedBook = await Book.findByIdAndUpdate(req.params.id, book, {});
+      const thebook = await Book.findByIdAndUpdate(req.params.id, book, {});
       // Redirect to book detail page.
-      res.redirect(updatedBook.url);
+      res.redirect(thebook.url);
     }
   }),
 ];
